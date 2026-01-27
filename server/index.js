@@ -12,6 +12,10 @@ const app = express();
 const PORT = process.env.PORT || 4242;
 const PUBLIC_DIR = path.resolve(__dirname, '..', 'public');
 
+// ✅ Base URL (local OR Render)
+const BASE_URL =
+  process.env.BASE_URL || `http://localhost:${PORT}`;
+
 // =====================================================
 // 🔔 STRIPE WEBHOOK — MUST BE FIRST
 // =====================================================
@@ -105,11 +109,8 @@ app.post('/create-checkout-session', async (req, res) => {
         campaign: 'mlk_honor_campaign',
       },
 
-const BASE_URL =
-  process.env.BASE_URL || 'http://localhost:4242';
-
-success_url: `${BASE_URL}/success.html?session_id={CHECKOUT_SESSION_ID}`,
-cancel_url: `${BASE_URL}/index.html`,
+      success_url: `${BASE_URL}/success.html?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${BASE_URL}/index.html`,
     });
 
     res.json({ url: session.url });
