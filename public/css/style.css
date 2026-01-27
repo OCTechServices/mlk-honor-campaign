@@ -126,3 +126,58 @@ footer {
   50% { opacity: 1; transform: scale(1); }
   100% { opacity: 0.6; transform: scale(0.96); }
 }
+
+/* =========================
+   Mobile-first polish
+   ========================= */
+
+.main {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.card {
+  padding: 18px;
+}
+
+@media (max-width: 640px) {
+  header h1 {
+    font-size: 22px;
+    line-height: 1.2;
+  }
+
+  header p {
+    font-size: 14px;
+  }
+
+  nav a {
+    display: inline-block;
+    margin-right: 12px;
+    font-size: 14px;
+  }
+
+  label {
+    font-size: 14px;
+  }
+
+  select,
+  input {
+    font-size: 16px;
+    padding: 14px;
+  }
+
+  .cta {
+    display: block;
+    width: 100%;
+    text-align: center;
+    font-size: 16px;
+    padding: 14px 0;
+  }
+
+  #message-preview {
+    font-size: 14px;
+    line-height: 1.5;
+  }
+}
+
