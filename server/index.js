@@ -10,7 +10,7 @@ const { enqueueMessage, updateStatus } = require('./queue/queue');
 
 const app = express();
 const PORT = 4242;
-const PUBLIC_DIR = path.join(__dirname, '../public');
+const PUBLIC_DIR = path.resolve(__dirname, '..', 'public');
 
 // =====================================================
 // 🔔 STRIPE WEBHOOK — MUST BE FIRST
