@@ -62,9 +62,30 @@
       <option value="">— Choose a Message —</option>
     </select>
 
-    <div style="margin-top:12px;padding:12px;border-left:3px solid #000;">
+    <!-- Read-only Message Preview -->
+    <div
+      id="message-preview"
+      style="
+        margin-top:16px;
+        padding:14px 16px;
+        border-left:3px solid #000;
+        background:#fafafa;
+      "
+    >
+      <div style="font-size:13px;font-weight:600;margin-bottom:6px;">
+        Message Content (Read-Only Preview)
+      </div>
+
+      <div style="font-size:12px;color:#555;margin-bottom:10px;">
+        The message below is delivered verbatim. No edits are permitted.
+      </div>
+
       <strong id="template-title"></strong>
-      <p id="template-excerpt" style="margin-top:6px;"></p>
+
+      <p
+        id="template-body"
+        style="margin-top:8px;white-space:pre-line;"
+      ></p>
     </div>
 
     <a class="cta" href="#" id="checkout" style="margin-top:24px;">
@@ -94,40 +115,31 @@
 <script>
   const btn = document.getElementById('checkout');
   const senatorSelect = document.getElementById('senator');
-  const messageSelect = document.getElementById('message-template');
 
   btn.addEventListener('click', async (e) => {
     e.preventDefault();
 
-const senator = senatorSelect.value;
-const templateId = document.getElementById('message-template').value;
+    const senator = senatorSelect.value;
+    const templateId = document.getElementById('message-template').value;
 
-if (!templateId) {
-  alert('Please select a message before continuing.');
-  return;
-}
-
+    if (!templateId) {
+      alert('Please select a message before continuing.');
+      return;
+    }
 
     try {
       const res = await fetch('/create-checkout-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ senator, templateId })
-
       });
 
-      if (!res.ok) {
-        throw new Error('Server returned ' + res.status);
-      }
+      if (!res.ok) throw new Error('Server returned ' + res.status);
 
       const data = await res.json();
-
-      if (!data.url) {
-        throw new Error('No checkout URL returned');
-      }
+      if (!data.url) throw new Error('No checkout URL returned');
 
       window.location.href = data.url;
-
     } catch (err) {
       console.error('Checkout failed:', err);
       alert('Unable to start checkout. Please try again.');
