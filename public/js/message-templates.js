@@ -1,29 +1,31 @@
-async function loadMessageTemplates() {
-  const select = document.getElementById('message-template');
-  const previewTitle = document.getElementById('template-title');
-  const previewExcerpt = document.getElementById('template-excerpt');
+let MESSAGE_TEMPLATES = [];
 
+async function loadMessageTemplates() {
   try {
     const res = await fetch('/data/message-templates.json');
-    const templates = await res.json();
+    MESSAGE_TEMPLATES = await res.json();
 
-    templates.forEach(t => {
+    const select = document.getElementById('message-template');
+
+    MESSAGE_TEMPLATES.forEach(t => {
       const opt = document.createElement('option');
       opt.value = t.id;
       opt.textContent = t.title;
-      opt.dataset.excerpt = t.excerpt;
       select.appendChild(opt);
     });
 
-    select.addEventListener('change', () => {
-      const selected = select.options[select.selectedIndex];
-      previewTitle.textContent = selected.textContent || '';
-      previewExcerpt.textContent = selected.dataset.excerpt || '';
-    });
-
+    select.addEventListener('change', handleTemplateChange);
   } catch (err) {
     console.error('Failed to load message templates', err);
   }
 }
 
-window.loadMessageTemplates = loadMessageTemplates;
+function handleTemplateChange() {
+  const templateId = document.getElementById('message-template').value;
+  const template = MESSAGE_TEMPLATES.find(t => t.id === templateId);
+
+  if (!template) return;
+
+  document.getElementById('template-title').textContent = template.title;
+  document.getElementById('template-body').textContent = template.body;
+}
