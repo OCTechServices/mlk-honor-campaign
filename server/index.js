@@ -105,9 +105,11 @@ app.post('/create-checkout-session', async (req, res) => {
         campaign: 'mlk_honor_campaign',
       },
 
-      success_url:
-        'http://localhost:4242/success.html?session_id={CHECKOUT_SESSION_ID}',
-      cancel_url: 'http://localhost:4242/index.html',
+const BASE_URL =
+  process.env.BASE_URL || 'http://localhost:4242';
+
+success_url: `${BASE_URL}/success.html?session_id={CHECKOUT_SESSION_ID}`,
+cancel_url: `${BASE_URL}/index.html`,
     });
 
     res.json({ url: session.url });
