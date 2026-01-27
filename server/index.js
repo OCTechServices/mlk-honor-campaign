@@ -9,7 +9,7 @@ const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const { enqueueMessage, updateStatus } = require('./queue/queue');
 
 const app = express();
-const PORT = 4242;
+const PORT = process.env.PORT || 4242;
 const PUBLIC_DIR = path.resolve(__dirname, '..', 'public');
 
 // =====================================================
@@ -134,5 +134,5 @@ app.get('/admin/queue', (req, res) => {
 // Start Server
 // --------------------
 app.listen(PORT, () => {
-  console.log(`✅ MLK Honor Campaign running at http://localhost:${PORT}`);
+  console.log(`✅ MLK Honor Campaign running on port ${PORT}`);
 });
