@@ -6,19 +6,20 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
-const { enqueueMessage, updateStatus } = require('./queue/queue');
+const { enqueueMessage } = require('./queue/queue');
 
 const app = express();
 const PORT = process.env.PORT || 4242;
-const PUBLIC_DIR = path.resolve(__dirname, '..', 'public');
 
-// ✅ Base URL (local OR Render)
-const BASE_URL =
-  process.env.BASE_URL || `http://localhost:${PORT}`;
+// IMPORTANT: static root
+const PUBLIC_DIR = path.join(__dirname, '..', 'public');
 
-// =====================================================
-// 🔔 STRIPE WEBHOOK — MUST BE FIRST
-// =====================================================
+// Base URL (Render or local)
+const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
+
+/* =====================================================
+   🔔 STRIPE WEBHOOK — MUST BE FIRST
+   ===================================================== */
 app.post(
   '/webhook',
   express.raw({ type: '*/*' }),
@@ -33,160 +34,132 @@ app.post(
         process.env.STRIPE_WEBHOOK_SECRET
       );
     } catch (err) {
-      console.error('❌ Webhook signature verification failed:', err.message);
-      return res.status(400).send('Webhook signature verification failed');
+      console.error('❌ Webhook verification failed:', err.message);
+      return res.status(400).send('Webhook Error');
     }
-
-    console.log('🔔 Stripe event:', event.type);
 
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
 
-      try {
-enqueueMessage({
-  senator: session.metadata.selected_senator,
-  campaign: session.metadata.campaign,
-  templateId: session.metadata.template_id,
-  stripeSessionId: session.id,
-  timestamp: new Date().toISOString(),
-});
+      enqueueMessage({
+        senator: session.metadata?.selected_senator,
+        templateId: session.metadata?.template_id,
+        campaign: session.metadata?.campaign,
+        stripeSessionId: session.id,
+        amount: session.amount_total / 100,
+        currency: session.currency,
+        status: 'paid',
+        timestamp: new Date().toISOString(),
+      });
 
-        console.log('✅ Message enqueued from webhook:', session.id);
-      } catch (err) {
-        console.error('❌ Queue error:', err.message);
-        return res.status(500).send('Queue error');
-      }
+      console.log('✅ Paid session recorded:', session.id);
     }
 
     res.json({ received: true });
   }
 );
 
-// =====================================================
-// 🧱 NORMAL APP MIDDLEWARE (AFTER WEBHOOK)
-// =====================================================
+/* =====================================================
+   🧱 NORMAL APP MIDDLEWARE (AFTER WEBHOOK)
+   ===================================================== */
 app.use(express.json());
 app.use(express.static(PUBLIC_DIR));
 
-// --------------------
-// Health Check
-// --------------------
+/* --------------------
+   Health Check
+-------------------- */
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
-// --------------------
-// Create Checkout Session
-// --------------------
+/* --------------------
+   Create Checkout Session
+-------------------- */
 app.post('/create-checkout-session', async (req, res) => {
+  const { senator, templateId } = req.body;
+
+  if (!senator || !templateId) {
+    return res.status(400).json({ error: 'Missing senator or templateId' });
+  }
+
   try {
-    const { senator, templateId } = req.body;
-
-    if (!senator || !templateId) {
-      return res.status(400).json({ error: 'Missing senator or templateId' });
-    }
-
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       payment_method_types: ['card'],
       billing_address_collection: 'required',
-
       line_items: [
         {
           price_data: {
             currency: 'usd',
+            unit_amount: 700,
             product_data: {
               name: 'Civic Correspondence Service — MLK Honor Campaign',
             },
-            unit_amount: 700,
           },
           quantity: 1,
         },
       ],
-
       metadata: {
         selected_senator: senator,
         template_id: templateId,
         campaign: 'mlk_honor_campaign',
       },
-
-      success_url: `${BASE_URL}/success.html?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${BASE_URL}/success.html`,
       cancel_url: `${BASE_URL}/index.html`,
     });
 
     res.json({ url: session.url });
   } catch (err) {
-    console.error('❌ Stripe error:', err.message);
-    res.status(500).json({ error: err.message });
+    console.error('Stripe error:', err);
+    res.status(500).json({ error: 'Stripe checkout failed' });
   }
 });
 
-// --------------------
-// Admin Queue
-// --------------------
-app.get('/admin/queue', (req, res) => {
-  try {
-    const filePath = path.join(__dirname, 'queue', 'messages.json');
-    const messages = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-    res.json(messages);
-  } catch (err) {
-    res.status(500).json({ error: 'Unable to read queue' });
-  }
-});
-
-// --------------------
-// Admin Dashboard (v1)
-// --------------------
+/* --------------------
+   Admin Dashboard API
+-------------------- */
 app.get('/admin/dashboard', (req, res) => {
   try {
-    const filePath = path.join(__dirname, 'queue', 'messages.json');
-    const messages = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    const file = path.join(__dirname, 'queue', 'messages.json');
+    const messages = fs.existsSync(file)
+      ? JSON.parse(fs.readFileSync(file, 'utf8'))
+      : [];
 
+    let raised = 0;
     const letters = { total: 0, pending: 0, sent: 0 };
     const templates = {};
     const states = {};
 
     for (const m of messages) {
-      letters.total++;
+      if (m.status === 'paid') {
+        letters.total++;
+        letters.pending++;
 
-      const status = (m.status || 'queued').toLowerCase();
-      if (status === 'sent') letters.sent++;
-      else letters.pending++;
-
-      const tid = m.templateId || 'unknown';
-      templates[tid] = (templates[tid] || 0) + 1;
-
-      const st = m.state || 'Unknown';
-      states[st] = (states[st] || 0) + 1;
+        if (m.amount) raised += m.amount;
+        if (m.templateId) templates[m.templateId] = (templates[m.templateId] || 0) + 1;
+        if (m.state) states[m.state] = (states[m.state] || 0) + 1;
+      }
     }
-
-    const cap = Number(process.env.DONATION_CAP || 300);
-    const raised = Number(process.env.DONATION_RAISED || 0);
 
     res.json({
       letters,
       templates,
       states,
-      donation: { raised, cap },
-      updatedAt: new Date().toISOString()
+      donation: {
+        raised,
+        cap: Number(process.env.DONATION_CAP || 300),
+      },
+      updatedAt: new Date().toISOString(),
     });
   } catch (err) {
-    console.error('🔴 DASHBOARD ERROR:', err.message);
-    res.status(500).json({ error: 'Unable to build dashboard metrics' });
+    console.error('Dashboard error:', err);
+    res.status(500).json({ error: 'Dashboard failed' });
   }
 });
 
-// webhook
-app.post('/webhook', express.raw({ type: '*/*' }), ...);
-
-// normal app
-app.use(express.json());
-app.use(express.static(PUBLIC_DIR));
-
-
-// --------------------
-// Start Server
-// --------------------
+/* --------------------
+   Start Server
+-------------------- */
 app.listen(PORT, () => {
   console.log(`✅ MLK Honor Campaign running on port ${PORT}`);
 });
