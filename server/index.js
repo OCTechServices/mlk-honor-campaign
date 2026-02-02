@@ -11,7 +11,7 @@ const { enqueueMessage } = require('./queue/queue');
 const app = express();
 const PORT = process.env.PORT || 4242;
 
-// IMPORTANT: static root
+// ✅ Static root (THIS MATCHES YOUR FOLDER TREE)
 const PUBLIC_DIR = path.join(__dirname, 'public');
 
 // Base URL (Render or local)
@@ -20,47 +20,43 @@ const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
 /* =====================================================
    🔔 STRIPE WEBHOOK — MUST BE FIRST
    ===================================================== */
-app.post(
-  '/webhook',
-  express.raw({ type: '*/*' }),
-  (req, res) => {
-    const sig = req.headers['stripe-signature'];
-    let event;
+app.post('/webhook', express.raw({ type: '*/*' }), (req, res) => {
+  const sig = req.headers['stripe-signature'];
+  let event;
 
-    try {
-      event = stripe.webhooks.constructEvent(
-        req.body,
-        sig,
-        process.env.STRIPE_WEBHOOK_SECRET
-      );
-    } catch (err) {
-      console.error('❌ Webhook verification failed:', err.message);
-      return res.status(400).send('Webhook Error');
-    }
-
-    if (event.type === 'checkout.session.completed') {
-      const session = event.data.object;
-
-      enqueueMessage({
-        senator: session.metadata?.selected_senator,
-        templateId: session.metadata?.template_id,
-        campaign: session.metadata?.campaign,
-        stripeSessionId: session.id,
-        amount: session.amount_total / 100,
-        currency: session.currency,
-        status: 'paid',
-        timestamp: new Date().toISOString(),
-      });
-
-      console.log('✅ Paid session recorded:', session.id);
-    }
-
-    res.json({ received: true });
+  try {
+    event = stripe.webhooks.constructEvent(
+      req.body,
+      sig,
+      process.env.STRIPE_WEBHOOK_SECRET
+    );
+  } catch (err) {
+    console.error('❌ Webhook verification failed:', err.message);
+    return res.status(400).send('Webhook Error');
   }
-);
+
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object;
+
+    enqueueMessage({
+      senator: session.metadata?.selected_senator || 'Unknown',
+      templateId: session.metadata?.template_id || 'unknown',
+      campaign: session.metadata?.campaign || 'mlk_honor_campaign',
+      stripeSessionId: session.id,
+      amount: session.amount_total ? session.amount_total / 100 : 0,
+      currency: session.currency || 'usd',
+      status: 'paid',
+      timestamp: new Date().toISOString(),
+    });
+
+    console.log('✅ Paid session recorded:', session.id);
+  }
+
+  res.json({ received: true });
+});
 
 /* =====================================================
-   🧱 NORMAL APP MIDDLEWARE (AFTER WEBHOOK)
+   🧱 NORMAL APP MIDDLEWARE
    ===================================================== */
 app.use(express.json());
 app.use(express.static(PUBLIC_DIR));
@@ -115,7 +111,9 @@ app.post('/create-checkout-session', async (req, res) => {
   }
 });
 
-// Admin Dashboard JSON API
+/* --------------------
+   Admin Dashboard JSON API
+-------------------- */
 app.get('/admin/api/dashboard', (req, res) => {
   try {
     const filePath = path.join(__dirname, 'queue', 'messages.json');
@@ -129,13 +127,20 @@ app.get('/admin/api/dashboard', (req, res) => {
     let raised = 0;
 
     for (const m of messages) {
-      if (m.status === 'paid') {
+      // Count only real paid Stripe records
+      if (m.stripeSessionId && m.amount > 0) {
         letters.total++;
         letters.pending++;
 
-        if (m.amount) raised += m.amount;
-        if (m.templateId) templates[m.templateId] = (templates[m.templateId] || 0) + 1;
-        if (m.state) states[m.state] = (states[m.state] || 0) + 1;
+        raised += m.amount;
+
+        if (m.templateId) {
+          templates[m.templateId] = (templates[m.templateId] || 0) + 1;
+        }
+
+        if (m.state) {
+          states[m.state] = (states[m.state] || 0) + 1;
+        }
       }
     }
 
@@ -154,7 +159,6 @@ app.get('/admin/api/dashboard', (req, res) => {
     res.status(500).json({ error: 'Dashboard failed' });
   }
 });
-
 
 /* --------------------
    Start Server
