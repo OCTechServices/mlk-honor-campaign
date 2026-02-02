@@ -43,12 +43,13 @@ app.post(
       const session = event.data.object;
 
       try {
-        enqueueMessage({
-          senator: session.metadata.selected_senator,
-          campaign: session.metadata.campaign,
-          templateId: session.metadata.template_id,
-          stripeSessionId: session.id,
-        });
+enqueueMessage({
+  senator: session.metadata.selected_senator,
+  campaign: session.metadata.campaign,
+  templateId: session.metadata.template_id,
+  stripeSessionId: session.id,
+  timestamp: new Date().toISOString(),
+});
 
         console.log('✅ Message enqueued from webhook:', session.id);
       } catch (err) {
@@ -132,6 +133,53 @@ app.get('/admin/queue', (req, res) => {
     res.status(500).json({ error: 'Unable to read queue' });
   }
 });
+
+// --------------------
+// Admin Dashboard (v1)
+// --------------------
+app.get('/admin/dashboard', (req, res) => {
+  try {
+    const filePath = path.join(__dirname, 'queue', 'messages.json');
+    const messages = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+
+    const letters = { total: 0, pending: 0, sent: 0 };
+    const templates = {};
+    const states = {};
+
+    for (const m of messages) {
+      letters.total++;
+
+      const status = (m.status || 'queued').toLowerCase();
+      if (status === 'sent') letters.sent++;
+      else letters.pending++;
+
+      const tid = m.templateId || 'unknown';
+      templates[tid] = (templates[tid] || 0) + 1;
+
+      const st = m.state || 'Unknown';
+      states[st] = (states[st] || 0) + 1;
+    }
+
+    const cap = Number(process.env.DONATION_CAP || 300);
+    const raised = Number(process.env.DONATION_RAISED || 0);
+
+    res.json({
+      letters,
+      templates,
+      states,
+      donation: { raised, cap },
+      updatedAt: new Date().toISOString()
+    });
+  } catch (err) {
+    console.error('🔴 DASHBOARD ERROR:', err.message);
+    res.status(500).json({ error: 'Unable to build dashboard metrics' });
+  }
+});
+
+app.use(express.json());
+app.use(express.static(PUBLIC_DIR));
+
+
 
 // --------------------
 // Start Server
