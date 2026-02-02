@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MLK Honor Campaign</title>
+  <!-- Social sharing -->
+<meta property="og:title" content="MLK Honor Campaign" />
+<meta property="og:description" content="A civic correspondence service honoring the legacy of Martin Luther King Jr. through respectful, values-driven messages to elected officials." />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://mlk-honor-campaign-tbda.onrender.com" />
+<meta property="og:image" content="https://mlk-honor-campaign-tbda.onrender.com/og-image.png" />
+
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="MLK Honor Campaign" />
+<meta name="twitter:description" content="Respectful civic correspondence focused on accountability, dignity, and the rule of law." />
+<meta name="twitter:image" content="https://mlk-honor-campaign-tbda.onrender.com/og-image.png" />
+
+  <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+
+<header>
+  <h1>MLK Honor Campaign</h1>
+  <p>
+    A civic correspondence service honoring the legacy of Martin Luther King Jr.
+    through respectful, values-driven messages to elected officials.
+  </p>
+
+  <nav>
+    <a href="how-it-works.html">How It Works</a>
+    <a href="transparency.html">Transparency</a>
+    <a href="faq.html">FAQ</a>
+  </nav>
+</header>
+
+<main class="main">
+  <div class="card">
+    <h2>Purpose</h2>
+    <p>
+      This platform enables individuals to send a calm, principled message
+      to a U.S. Senator, encouraging fidelity to democratic norms,
+      moral leadership, and the rule of law.
+    </p>
+
+    <p>
+      This is not protest software, not lobbying, and not a fundraising platform.
+      It is a civic expression service designed with operational integrity.
+    </p>
+
+    <!-- Senator selector -->
+    <label for="senator" style="display:block;margin-top:24px;margin-bottom:8px;">
+      Select a Senator
+    </label>
+
+    <input
+      id="senator-search"
+      type="text"
+      placeholder="Search by state or name"
+      style="width:100%;padding:10px;margin-bottom:12px;border-radius:8px;"
+    >
+
+    <select id="senator" style="width:100%;padding:12px;border-radius:8px;">
+      <option value="">— Choose a Senator —</option>
+    </select>
+
+    <!-- Message template selector -->
+    <label for="message-template" style="display:block;margin-top:24px;margin-bottom:8px;">
+      Select a Message
+    </label>
+
+    <select id="message-template" style="width:100%;padding:12px;border-radius:8px;">
+      <option value="">— Choose a Message —</option>
+    </select>
+
+    <!-- Read-only Message Preview -->
+    <div
+      id="message-preview"
+      style="
+        margin-top:16px;
+        padding:16px;
+        border-left:3px solid #000;
+        background:#fafafa;
+            color:#111;
+      "
+    >
+      <div style="font-size:13px;font-weight:600;margin-bottom:6px;">
+        Message Content (Read-Only Preview)
+      </div>
+
+<strong id="template-title" style="color:#000;"></strong>
+
+<div
+  id="template-body"
+  style="white-space:pre-line;margin-top:8px;color:#333;"
+></div>
+
+    </div>
+
+    <a class="cta" href="#" id="checkout" style="margin-top:24px;">
+      Send a Message
+    </a>
+  </div>
+</main>
+
+<footer>
+  © MLK Honor Campaign · Civic Integrity · Justice · Accountability
+</footer>
+
+<!-- Senator data + UI -->
+<script src="js/senators.js"></script>
+<script src="js/senator-ui.js"></script>
+<script>
+  window.initSenatorUI();
+</script>
+
+<!-- Message templates -->
+<script src="js/message-templates.js"></script>
+<script>
+  loadMessageTemplates();
+</script>
+
+<!-- Checkout -->
+<script>
+  const btn = document.getElementById('checkout');
+  const senatorSelect = document.getElementById('senator');
+
+  btn.addEventListener('click', async (e) => {
+    e.preventDefault();
+
+    const senator = senatorSelect.value;
+    const templateId = document.getElementById('message-template').value;
+
+    if (!templateId) {
+      alert('Please select a message before continuing.');
+      return;
+    }
+
+    try {
+      const res = await fetch('/create-checkout-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ senator, templateId })
+      });
+
+      if (!res.ok) throw new Error('Server returned ' + res.status);
+
+      const data = await res.json();
+      if (!data.url) throw new Error('No checkout URL returned');
+
+      window.location.href = data.url;
+    } catch (err) {
+      console.error('Checkout failed:', err);
+      alert('Unable to start checkout. Please try again.');
+    }
+  });
+</script>
+
+</body>
+</html>

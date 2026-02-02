@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Message Confirmed — MLK Honor Campaign</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+
+<header>
+  <h1>Message Confirmed</h1>
+</header>
+
+<main>
+  <div class="card">
+    <div style="text-align:center;margin-bottom:20px;">
+      <div style="
+        width:64px;
+        height:64px;
+        border-radius:50%;
+        border:2px solid #fff;
+        display:inline-flex;
+        align-items:center;
+        justify-content:center;
+        font-size:32px;
+      ">
+        ✓
+      </div>
+    </div>
+
+    <h2>Message Confirmed</h2>
+
+    <p id="confirmation-text">
+      Your message has been queued for delivery.
+    </p>
+
+    <p class="muted">
+      This service guarantees respectful message delivery only.
+      No response is implied or required.
+    </p>
+  </div>
+</main>
+
+<footer>
+  “Injustice anywhere is a threat to justice everywhere.”
+</footer>
+
+<script>
+  async function loadConfirmation() {
+    const params = new URLSearchParams(window.location.search);
+    const sessionId = params.get('session_id');
+
+    if (!sessionId) return;
+
+    try {
+      const res = await fetch(`/checkout-session?session_id=${sessionId}`);
+      if (!res.ok) return;
+
+      const data = await res.json();
+
+      if (data.senator) {
+        document.getElementById('confirmation-text').textContent =
+          `Your message to ${data.senator} has been queued for delivery.`;
+      }
+    } catch (err) {
+      console.error('Confirmation load failed:', err);
+    }
+  }
+
+  loadConfirmation();
+</script>
+
+</body>
+</html>

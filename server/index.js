@@ -12,7 +12,7 @@ const app = express();
 const PORT = process.env.PORT || 4242;
 
 // IMPORTANT: static root
-const PUBLIC_DIR = path.join(__dirname, '..', 'public');
+const PUBLIC_DIR = path.join(__dirname, 'public');
 
 // Base URL (Render or local)
 const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
