@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Spread the Word — MLK Honor Campaign</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <link rel="stylesheet" href="/css/style.css" />
+
+  <!-- PDF generation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+  <style>
+    .spread-wrap {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 40px 20px;
+    }
+
+    /* ===== PDF SAFE WRAPPER ===== */
+    .pdf-wrapper {
+      background: #fff;
+      color: #000;
+      padding: 40px 24px 56px;
+      border-radius: 8px;
+      box-sizing: border-box;
+    }
+
+    .pdf-wrapper h1 {
+      font-size: 28px;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+
+    .pdf-wrapper p {
+      font-size: 16px;
+      line-height: 1.6;
+      margin-bottom: 16px;
+    }
+
+    .qr-section {
+      margin-top: 32px;
+      text-align: center;
+    }
+
+    .qr-section img {
+      display: block;
+      margin: 0 auto 12px;
+      width: 180px;
+      height: 180px;
+    }
+
+    .qr-section p {
+      font-size: 14px;
+      margin: 0;
+    }
+
+    .actions {
+      margin-top: 28px;
+      text-align: center;
+    }
+
+    .actions button {
+      padding: 12px 20px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    /* Hide UI in PDF */
+    @media print {
+      .actions { display: none; }
+      body { background: #fff; }
+    }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <nav>
+    <a href="/index.html">Home</a>
+    <a href="/how-it-works.html">How It Works</a>
+    <a href="/faq.html">FAQ</a>
+    <a href="/progress.html">Progress</a>
+    <a href="/spread.html" class="active">Spread the Word</a>
+  </nav>
+</header>
+
+<main class="spread-wrap">
+
+  <div id="printable-content" class="pdf-wrapper">
+    <h1>Honor the Legacy. Take Action.</h1>
+
+    <p>
+      The MLK Honor Campaign enables individuals to send respectful,
+      values-driven messages to elected officials in the spirit of
+      Dr. Martin Luther King Jr.
+    </p>
+
+    <p>
+      This is a civic correspondence effort rooted in transparency,
+      accountability, and peaceful advocacy.
+    </p>
+
+    <p>
+      Donations are capped. Progress is public.
+      Every action is visible.
+    </p>
+
+    <div class="qr-section">
+      <img
+        src="https://mlk-honor-campaign.web.app/assets/qr/mlk-honor-campaign-qr.png"
+        alt="MLK Honor Campaign QR Code"
+        crossorigin="anonymous"
+      />
+      <p>
+        Scan the QR code or visit:<br />
+        <strong>mlk-honor-campaign.web.app</strong>
+      </p>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button id="download-pdf-btn">Download Printable PDF</button>
+  </div>
+
+</main>
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const btn = document.getElementById("download-pdf-btn");
+    const content = document.getElementById("printable-content");
+
+    btn.addEventListener("click", async () => {
+      const options = {
+        margin: [0.75, 0.5, 0.75, 0.5],
+        filename: "mlk-honor-campaign-spread-the-word.pdf",
+        image: { type: "jpeg", quality: 0.98 },
+        html2canvas: {
+          scale: 2,
+          useCORS: true,
+          scrollY: 0,
+          windowWidth: document.body.scrollWidth
+        },
+        jsPDF: {
+          unit: "in",
+          format: "letter",
+          orientation: "portrait"
+        },
+        pagebreak: { mode: ["css", "legacy"] }
+      };
+
+      try {
+        await html2pdf().set(options).from(content).save();
+      } catch (err) {
+        console.error("PDF generation failed:", err);
+        alert("Unable to generate PDF. Please try again.");
+      }
+    });
+  });
+</script>
+
+</body>
+</html>

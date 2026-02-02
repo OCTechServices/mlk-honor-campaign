@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Campaign Progress — MLK Honor Campaign</title>
+
+  <link rel="stylesheet" href="/css/style.css" />
+
+  <style>
+    /* Page-local helpers (non-invasive) */
+    .wrap { max-width: 980px; margin: 0 auto; padding: 32px 18px; }
+    .grid { display: grid; gap: 16px; grid-template-columns: repeat(12, 1fr); }
+    .col-6 { grid-column: span 6; }
+    .col-12 { grid-column: span 12; }
+    @media (max-width: 760px){
+      .col-6 { grid-column: span 12; }
+    }
+    .kpi { font-size: 36px; font-weight: 700; margin-top: 6px; }
+    .label { opacity: .8; font-size: 13px; }
+    .muted { opacity: .7; }
+    .row { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+    .badge { font-size:12px; padding:6px 10px; border-radius:999px; border:1px solid rgba(255,255,255,.18); }
+    .ok { border-color: rgba(34,197,94,.6); }
+  </style>
+</head>
+
+<body>
+<header>
+  <nav>
+    <a href="/index.html">Home</a>
+    <a href="/how-it-works.html">How It Works</a>
+    <a href="/faq.html">FAQ</a>
+    <a href="/progress.html" class="active">Progress</a>
+    <a href="/spread.html">Spread the Word</a>
+  </nav>
+</header>
+
+<main class="wrap">
+  <div class="row">
+    <div>
+      <h1 style="margin:0;">Campaign Progress</h1>
+      <div class="muted" style="margin-top:6px;">
+        Transparent, real-time campaign metrics
+      </div>
+    </div>
+    <span id="status-pill" class="badge ok">Live</span>
+  </div>
+
+  <div class="grid" style="margin-top:28px;">
+
+    <div class="card col-6">
+      <div class="label">Total Letters</div>
+      <div class="kpi" id="letters-total">—</div>
+      <div class="muted" style="margin-top:6px;">
+        Pending: <strong id="letters-pending">—</strong> ·
+        Sent: <strong id="letters-sent">—</strong>
+      </div>
+    </div>
+
+    <div class="card col-6">
+      <div class="label">Donation Progress</div>
+      <div class="kpi" id="donation-raised">—</div>
+      <div class="muted" style="margin-top:6px;">
+        Cap: <strong id="donation-cap">$300</strong>
+      </div>
+    </div>
+
+    <div class="card col-12">
+      <div class="label">Last Updated</div>
+      <div class="muted" id="last-updated">—</div>
+    </div>
+
+  </div>
+</main>
+
+<footer class="wrap muted">
+  This page reflects confirmed payments and queued messages only.
+</footer>
+
+<script src="/js/progress.js"></script>
+</body>
+</html>

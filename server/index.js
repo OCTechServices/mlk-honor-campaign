@@ -1,168 +1,269 @@
-// server/index.js
+/* ============================================================
+   Imports & Initialization
+   ============================================================ */
+const { onRequest } = require('firebase-functions/v2/https');
+const { defineSecret } = require('firebase-functions/params');
+const admin = require('firebase-admin');
+const Stripe = require('stripe');
 
-require('dotenv').config({ path: require('path').join(__dirname, '.env') });
+admin.initializeApp();
 
-const express = require('express');
-const path = require('path');
-const fs = require('fs');
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
-const { enqueueMessage } = require('./queue/queue');
+/* ============================================================
+   Secrets (Gen-2)
+   ============================================================ */
+const STRIPE_SECRET_KEY = defineSecret('STRIPE_SECRET_KEY');
+const STRIPE_WEBHOOK_SECRET = defineSecret('STRIPE_WEBHOOK_SECRET');
 
-const app = express();
-const PORT = process.env.PORT || 4242;
-
-// ✅ Static root (THIS MATCHES YOUR FOLDER TREE)
-const PUBLIC_DIR = path.join(__dirname, '..', 'public');
-
-// Base URL (Render or local)
-const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
-
-/* =====================================================
-   🔔 STRIPE WEBHOOK — MUST BE FIRST
-   ===================================================== */
-app.post('/webhook', express.raw({ type: '*/*' }), (req, res) => {
-  const sig = req.headers['stripe-signature'];
-  let event;
-
-  try {
-    event = stripe.webhooks.constructEvent(
-      req.body,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET
-    );
-  } catch (err) {
-    console.error('❌ Webhook verification failed:', err.message);
-    return res.status(400).send('Webhook Error');
-  }
-
-  if (event.type === 'checkout.session.completed') {
-    const session = event.data.object;
-
-    enqueueMessage({
-      senator: session.metadata?.selected_senator || 'Unknown',
-      templateId: session.metadata?.template_id || 'unknown',
-      campaign: session.metadata?.campaign || 'mlk_honor_campaign',
-      stripeSessionId: session.id,
-      amount: session.amount_total ? session.amount_total / 100 : 0,
-      currency: session.currency || 'usd',
-      status: 'paid',
-      timestamp: new Date().toISOString(),
-    });
-
-    console.log('✅ Paid session recorded:', session.id);
-  }
-
-  res.json({ received: true });
-});
-
-/* =====================================================
-   🧱 NORMAL APP MIDDLEWARE
-   ===================================================== */
-app.use(express.json());
-app.use(express.static(PUBLIC_DIR));
-
-/* --------------------
-   Health Check
--------------------- */
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok' });
-});
-
-/* --------------------
-   Create Checkout Session
--------------------- */
-app.post('/create-checkout-session', async (req, res) => {
-  const { senator, templateId } = req.body;
-
-  if (!senator || !templateId) {
-    return res.status(400).json({ error: 'Missing senator or templateId' });
-  }
-
-  try {
-    const session = await stripe.checkout.sessions.create({
-      mode: 'payment',
-      payment_method_types: ['card'],
-      billing_address_collection: 'required',
-      line_items: [
-        {
-          price_data: {
-            currency: 'usd',
-            unit_amount: 700,
-            product_data: {
-              name: 'Civic Correspondence Service — MLK Honor Campaign',
-            },
-          },
-          quantity: 1,
-        },
-      ],
-      metadata: {
-        selected_senator: senator,
-        template_id: templateId,
-        campaign: 'mlk_honor_campaign',
-      },
-      success_url: `${BASE_URL}/success.html`,
-      cancel_url: `${BASE_URL}/index.html`,
-    });
-
-    res.json({ url: session.url });
-  } catch (err) {
-    console.error('Stripe error:', err);
-    res.status(500).json({ error: 'Stripe checkout failed' });
-  }
-});
-
-/* --------------------
-   Admin Dashboard JSON API
--------------------- */
-app.get('/admin/api/dashboard', (req, res) => {
-  try {
-    const filePath = path.join(__dirname, 'queue', 'messages.json');
-    const messages = fs.existsSync(filePath)
-      ? JSON.parse(fs.readFileSync(filePath, 'utf8'))
-      : [];
-
-    const letters = { total: 0, pending: 0, sent: 0 };
-    const templates = {};
-    const states = {};
-    let raised = 0;
-
-    for (const m of messages) {
-      // Count only real paid Stripe records
-      if (m.stripeSessionId && m.amount > 0) {
-        letters.total++;
-        letters.pending++;
-
-        raised += m.amount;
-
-        if (m.templateId) {
-          templates[m.templateId] = (templates[m.templateId] || 0) + 1;
-        }
-
-        if (m.state) {
-          states[m.state] = (states[m.state] || 0) + 1;
-        }
+/* ============================================================
+   Create Stripe Checkout Session (PUBLIC → SERVER)
+   ============================================================ */
+exports.createCheckoutSession = onRequest(
+  {
+    region: 'us-central1',
+    secrets: [STRIPE_SECRET_KEY],
+  },
+  async (req, res) => {
+    try {
+      if (req.method !== 'POST') {
+        return res.status(405).send('Method Not Allowed');
       }
+
+      const stripe = new Stripe(STRIPE_SECRET_KEY.value(), {
+        apiVersion: '2023-10-16',
+      });
+
+      const {
+        amount = 700, // $7 default
+        senator = 'unknown',
+        state = 'unknown',
+        templateId = 'mlk_civic_01',
+      } = req.body || {};
+
+      const session = await stripe.checkout.sessions.create({
+        mode: 'payment',
+        payment_method_types: ['card'],
+        line_items: [
+          {
+            price_data: {
+              currency: 'usd',
+              product_data: {
+                name: 'MLK Honor Campaign Letter',
+              },
+              unit_amount: amount,
+            },
+            quantity: 1,
+          },
+        ],
+        metadata: {
+          senator,
+          state,
+          templateId,
+        },
+        success_url:
+          'https://mlk-honor-campaign.web.app/success.html',
+        cancel_url:
+          'https://mlk-honor-campaign.web.app/cancel.html',
+      });
+
+      return res.status(200).json({ url: session.url });
+    } catch (err) {
+      console.error('createCheckoutSession error:', err);
+      return res.status(500).json({ error: 'checkout_unavailable' });
+    }
+  }
+);
+
+/* ============================================================
+   Stripe Webhook — Authoritative Write
+   ============================================================ */
+exports.stripeWebhook = onRequest(
+  {
+    region: 'us-central1',
+    secrets: [STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET],
+    rawBody: true,
+  },
+  async (req, res) => {
+    if (req.method !== 'POST') {
+      return res.status(405).send('Method Not Allowed');
     }
 
-    res.json({
-      letters,
-      templates,
-      states,
-      donation: {
-        raised,
-        cap: Number(process.env.DONATION_CAP || 300),
-      },
-      updatedAt: new Date().toISOString(),
+    const stripe = new Stripe(STRIPE_SECRET_KEY.value(), {
+      apiVersion: '2023-10-16',
     });
-  } catch (err) {
-    console.error('Dashboard error:', err);
-    res.status(500).json({ error: 'Dashboard failed' });
-  }
-});
 
-/* --------------------
-   Start Server
--------------------- */
-app.listen(PORT, () => {
-  console.log(`✅ MLK Honor Campaign running on port ${PORT}`);
-});
+    const sig = req.headers['stripe-signature'];
+    let event;
+
+    try {
+      event = stripe.webhooks.constructEvent(
+        req.rawBody,
+        sig,
+        STRIPE_WEBHOOK_SECRET.value()
+      );
+    } catch (err) {
+      console.error('❌ Webhook signature verification failed:', err.message);
+      return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+
+    if (event.type === 'checkout.session.completed') {
+      const session = event.data.object;
+
+      if (!session.amount_total) {
+        return res.json({ received: true });
+      }
+
+      const db = admin.firestore();
+
+      // Payment (idempotent)
+      await db.collection('payments').doc(session.id).set(
+        {
+          sessionId: session.id,
+          amount: session.amount_total / 100,
+          currency: session.currency,
+          status: 'paid',
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      // Message (idempotent)
+      await db.collection('messages').doc(`msg_${session.id}`).set(
+        {
+          senator: session.metadata?.senator || 'unknown',
+          state: session.metadata?.state || null,
+          templateId: session.metadata?.templateId || 'mlk_civic_01',
+          campaign: 'mlk_honor_campaign',
+          paymentSessionId: session.id,
+          status: 'queued',
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+    }
+
+    return res.json({ received: true });
+  }
+);
+
+/* ============================================================
+   Public Metrics — Read Only
+   ============================================================ */
+exports.publicMetrics = onRequest(
+  { region: 'us-central1' },
+  async (req, res) => {
+    try {
+      res.set('Cache-Control', 'public, max-age=30, s-maxage=30');
+
+      const db = admin.firestore();
+
+      const totalLettersAgg = await db.collection('messages').count().get();
+      const pendingLettersAgg = await db
+        .collection('messages')
+        .where('status', 'in', ['queued', 'processing'])
+        .count()
+        .get();
+      const sentLettersAgg = await db
+        .collection('messages')
+        .where('status', '==', 'sent')
+        .count()
+        .get();
+
+      const paidSnap = await db
+        .collection('payments')
+        .where('status', '==', 'paid')
+        .select('amount')
+        .get();
+
+      let raised = 0;
+      paidSnap.forEach((doc) => {
+        if (typeof doc.data().amount === 'number') raised += doc.data().amount;
+      });
+
+      raised = Math.round(raised * 100) / 100;
+
+      return res.json({
+        letters: {
+          total: totalLettersAgg.data().count || 0,
+          pending: pendingLettersAgg.data().count || 0,
+          sent: sentLettersAgg.data().count || 0,
+        },
+        donation: {
+          raised,
+          cap: 300,
+          paidCount: paidSnap.size,
+        },
+        lastUpdated: new Date().toISOString(),
+        source: 'firestore',
+      });
+    } catch (err) {
+      return res.status(500).json({ error: 'metrics_unavailable' });
+    }
+  }
+);
+
+/* ============================================================
+   Admin Dashboard — Internal Read Only
+   ============================================================ */
+exports.adminDashboard = onRequest(
+  { region: 'us-central1' },
+  async (req, res) => {
+    try {
+      res.set('Cache-Control', 'no-store');
+      const db = admin.firestore();
+
+      const totalLettersAgg = await db.collection('messages').count().get();
+      const pendingLettersAgg = await db
+        .collection('messages')
+        .where('status', '==', 'queued')
+        .count()
+        .get();
+      const sentLettersAgg = await db
+        .collection('messages')
+        .where('status', '==', 'sent')
+        .count()
+        .get();
+
+      const paidSnap = await db
+        .collection('payments')
+        .where('status', '==', 'paid')
+        .select('amount')
+        .get();
+
+      let raised = 0;
+      paidSnap.forEach((d) => {
+        if (typeof d.data().amount === 'number') raised += d.data().amount;
+      });
+
+      raised = Math.round(raised * 100) / 100;
+
+      const states = {};
+      const templates = {};
+
+      const msgSnap = await db
+        .collection('messages')
+        .select('state', 'templateId')
+        .get();
+
+      msgSnap.forEach((doc) => {
+        const d = doc.data();
+        if (d.state) states[d.state] = (states[d.state] || 0) + 1;
+        if (d.templateId)
+          templates[d.templateId] = (templates[d.templateId] || 0) + 1;
+      });
+
+      return res.json({
+        letters: {
+          total: totalLettersAgg.data().count || 0,
+          pending: pendingLettersAgg.data().count || 0,
+          sent: sentLettersAgg.data().count || 0,
+        },
+        donation: { raised, cap: 300 },
+        states,
+        templates,
+        lastUpdated: new Date().toISOString(),
+      });
+    } catch (err) {
+      return res.status(500).json({ error: 'dashboard_unavailable' });
+    }
+  }
+);
