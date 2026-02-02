@@ -115,20 +115,18 @@ app.post('/create-checkout-session', async (req, res) => {
   }
 });
 
-/* --------------------
-   Admin Dashboard API
--------------------- */
-app.get('/admin/dashboard', (req, res) => {
+// Admin Dashboard JSON API
+app.get('/admin/api/dashboard', (req, res) => {
   try {
-    const file = path.join(__dirname, 'queue', 'messages.json');
-    const messages = fs.existsSync(file)
-      ? JSON.parse(fs.readFileSync(file, 'utf8'))
+    const filePath = path.join(__dirname, 'queue', 'messages.json');
+    const messages = fs.existsSync(filePath)
+      ? JSON.parse(fs.readFileSync(filePath, 'utf8'))
       : [];
 
-    let raised = 0;
     const letters = { total: 0, pending: 0, sent: 0 };
     const templates = {};
     const states = {};
+    let raised = 0;
 
     for (const m of messages) {
       if (m.status === 'paid') {
@@ -156,6 +154,7 @@ app.get('/admin/dashboard', (req, res) => {
     res.status(500).json({ error: 'Dashboard failed' });
   }
 });
+
 
 /* --------------------
    Start Server

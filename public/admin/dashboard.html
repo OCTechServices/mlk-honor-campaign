@@ -122,7 +122,7 @@
   async function load(){
     try{
       setStatus(false, 'Loading…');
-      const res = await fetch('/admin/dashboard');
+      const res = await fetch('/admin/api/dashboard');
       if(!res.ok) throw new Error('HTTP ' + res.status);
       const data = await res.json();
 
