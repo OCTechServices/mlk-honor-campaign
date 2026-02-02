@@ -176,9 +176,12 @@ app.get('/admin/dashboard', (req, res) => {
   }
 });
 
+// webhook
+app.post('/webhook', express.raw({ type: '*/*' }), ...);
+
+// normal app
 app.use(express.json());
 app.use(express.static(PUBLIC_DIR));
-
 
 
 // --------------------
