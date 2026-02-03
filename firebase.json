@@ -7,18 +7,12 @@
       "**/node_modules/**"
     ],
     "rewrites": [
-      {
-        "source": "/create-checkout-session",
-        "function": "createCheckoutSession"
-      },
-      {
-        "source": "/metrics",
-        "function": "publicMetrics"
-      },
-      {
-        "source": "/admin/api/dashboard",
-        "function": "adminDashboard"
-      }
+      { "source": "/metrics", "function": "publicMetrics" },
+      { "source": "/admin/api/dashboard", "function": "adminDashboard" },
+      { "source": "/create-checkout-session", "function": "createCheckoutSession" }
     ]
+  },
+  "functions": {
+    "source": "server"
   }
 }

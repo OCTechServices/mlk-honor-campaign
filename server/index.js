@@ -23,21 +23,30 @@ exports.createCheckoutSession = onRequest(
     secrets: [STRIPE_SECRET_KEY],
   },
   async (req, res) => {
-    try {
-      if (req.method !== 'POST') {
-        return res.status(405).send('Method Not Allowed');
-      }
+    // ---- CORS (safe, minimal) ----
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    if (req.method === 'OPTIONS') {
+      return res.status(204).send('');
+    }
 
+    if (req.method !== 'POST') {
+      return res.status(405).json({ error: 'method_not_allowed' });
+    }
+
+    try {
       const stripe = new Stripe(STRIPE_SECRET_KEY.value(), {
         apiVersion: '2023-10-16',
       });
 
       const {
-        amount = 700, // $7 default
+        amount = 7, // dollars
         senator = 'unknown',
         state = 'unknown',
         templateId = 'mlk_civic_01',
       } = req.body || {};
+
+      const amountCents = Math.round(Number(amount) * 100);
 
       const session = await stripe.checkout.sessions.create({
         mode: 'payment',
@@ -49,7 +58,7 @@ exports.createCheckoutSession = onRequest(
               product_data: {
                 name: 'MLK Honor Campaign Letter',
               },
-              unit_amount: amount,
+              unit_amount: amountCents,
             },
             quantity: 1,
           },
@@ -60,9 +69,9 @@ exports.createCheckoutSession = onRequest(
           templateId,
         },
         success_url:
-          'https://mlk-honor-campaign.web.app/success.html',
+          'https://mlk-honor-campaign.web.app/?success=true',
         cancel_url:
-          'https://mlk-honor-campaign.web.app/cancel.html',
+          'https://mlk-honor-campaign.web.app/?canceled=true',
       });
 
       return res.status(200).json({ url: session.url });
@@ -101,13 +110,12 @@ exports.stripeWebhook = onRequest(
         STRIPE_WEBHOOK_SECRET.value()
       );
     } catch (err) {
-      console.error('❌ Webhook signature verification failed:', err.message);
+      console.error('Webhook signature verification failed:', err.message);
       return res.status(400).send(`Webhook Error: ${err.message}`);
     }
 
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
-
       if (!session.amount_total) {
         return res.json({ received: true });
       }
@@ -153,7 +161,6 @@ exports.publicMetrics = onRequest(
   async (req, res) => {
     try {
       res.set('Cache-Control', 'public, max-age=30, s-maxage=30');
-
       const db = admin.firestore();
 
       const totalLettersAgg = await db.collection('messages').count().get();
@@ -176,10 +183,10 @@ exports.publicMetrics = onRequest(
 
       let raised = 0;
       paidSnap.forEach((doc) => {
-        if (typeof doc.data().amount === 'number') raised += doc.data().amount;
+        if (typeof doc.data().amount === 'number') {
+          raised += doc.data().amount;
+        }
       });
-
-      raised = Math.round(raised * 100) / 100;
 
       return res.json({
         letters: {
@@ -188,7 +195,7 @@ exports.publicMetrics = onRequest(
           sent: sentLettersAgg.data().count || 0,
         },
         donation: {
-          raised,
+          raised: Math.round(raised * 100) / 100,
           cap: 300,
           paidCount: paidSnap.size,
         },
@@ -234,8 +241,6 @@ exports.adminDashboard = onRequest(
         if (typeof d.data().amount === 'number') raised += d.data().amount;
       });
 
-      raised = Math.round(raised * 100) / 100;
-
       const states = {};
       const templates = {};
 
@@ -257,7 +262,10 @@ exports.adminDashboard = onRequest(
           pending: pendingLettersAgg.data().count || 0,
           sent: sentLettersAgg.data().count || 0,
         },
-        donation: { raised, cap: 300 },
+        donation: {
+          raised: Math.round(raised * 100) / 100,
+          cap: 300,
+        },
         states,
         templates,
         lastUpdated: new Date().toISOString(),
