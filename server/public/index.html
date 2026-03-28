@@ -8,13 +8,13 @@
 <meta property="og:title" content="MLK Honor Campaign" />
 <meta property="og:description" content="A civic correspondence service honoring the legacy of Martin Luther King Jr. through respectful, values-driven messages to elected officials." />
 <meta property="og:type" content="website" />
-<meta property="og:url" content="https://mlk-honor-campaign-tbda.onrender.com" />
-<meta property="og:image" content="https://mlk-honor-campaign-tbda.onrender.com/og-image.png" />
+<meta property="og:url" content="https://mlk-honor-campaign.web.app" />
+<meta property="og:image" content="https://mlk-honor-campaign.web.app/og-image.png" />
 
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content="MLK Honor Campaign" />
 <meta name="twitter:description" content="Respectful civic correspondence focused on accountability, dignity, and the rule of law." />
-<meta name="twitter:image" content="https://mlk-honor-campaign-tbda.onrender.com/og-image.png" />
+<meta name="twitter:image" content="https://mlk-honor-campaign.web.app/og-image.png" />
 
   <link rel="stylesheet" href="css/style.css">
 </head>
@@ -29,8 +29,8 @@
   </p>
 
   <nav>
-    <a href="how-it-works.html">How It Works</a>
-    <a href="faq.html">FAQ</a>
+    <a href="/how-it-works.html">How It Works</a>
+    <a href="/faq.html">FAQ</a>
     <a href="/progress.html">Progress</a>
     <a href="/spread.html">Spread the Word</a>
   </nav>
@@ -51,52 +51,28 @@
     </p>
 
     <!-- Senator selector -->
-    <label for="senator" style="display:block;margin-top:24px;margin-bottom:8px;">
-      Select a Senator
-    </label>
-
+    <label for="senator-search">Select a Senator</label>
     <input
       id="senator-search"
       type="text"
       placeholder="Search by state or name"
-      style="width:100%;padding:10px;margin-bottom:12px;border-radius:8px;"
+      style="margin-bottom:10px;"
     >
-
-    <select id="senator" style="width:100%;padding:12px;border-radius:8px;">
+    <select id="senator">
       <option value="">— Choose a Senator —</option>
     </select>
 
     <!-- Message template selector -->
-    <label for="message-template" style="display:block;margin-top:24px;margin-bottom:8px;">
-      Select a Message
-    </label>
-
-    <select id="message-template" style="width:100%;padding:12px;border-radius:8px;">
+    <label for="message-template">Select a Message</label>
+    <select id="message-template">
       <option value="">— Choose a Message —</option>
     </select>
 
     <!-- Read-only Message Preview -->
-    <div
-      id="message-preview"
-      style="
-        margin-top:16px;
-        padding:16px;
-        border-left:3px solid #000;
-        background:#fafafa;
-            color:#111;
-      "
-    >
-      <div style="font-size:13px;font-weight:600;margin-bottom:6px;">
-        Message Content (Read-Only Preview)
-      </div>
-
-<strong id="template-title" style="color:#000;"></strong>
-
-<div
-  id="template-body"
-  style="white-space:pre-line;margin-top:8px;color:#333;"
-></div>
-
+    <div id="message-preview" class="message-preview">
+      <div class="message-preview-label">Message Preview — Read Only</div>
+      <div class="message-preview-title" id="template-title"></div>
+      <div class="message-preview-body" id="template-body"></div>
     </div>
 
     <a class="cta" href="#" id="checkout" style="margin-top:24px;">

@@ -8,7 +8,10 @@
     ],
     "rewrites": [
       { "source": "/metrics", "function": "publicMetrics" },
+      { "source": "/checkout-session", "function": "checkoutSession" },
       { "source": "/admin/api/dashboard", "function": "adminDashboard" },
+      { "source": "/admin/queue", "function": "adminQueue" },
+      { "source": "/admin/update-status", "function": "adminUpdateStatus" },
       { "source": "/create-checkout-session", "function": "createCheckoutSession" }
     ]
   },

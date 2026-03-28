@@ -8,74 +8,195 @@
   <link rel="stylesheet" href="css/style.css">
 
   <style>
-    body {
-      background: #f4f4f4;
-      color: #000;
-    }
+    /* ── Layout helpers (mirrors dashboard) ── */
+    .wrap  { max-width: 980px; margin: 0 auto; padding: 28px 18px; }
+    .row   { display: flex; gap: 10px; align-items: center; justify-content: space-between; }
+    .muted { opacity: .75; }
+    .badge { font-size: 12px; padding: 6px 10px; border-radius: 999px; border: 1px solid rgba(255,255,255,.18); opacity: .9; color: var(--ink); text-decoration: none; }
+    .ok    { border-color: rgba(34,197,94,.5); }
+    .warn  { border-color: rgba(245,158,11,.5); }
 
-    h1 {
-      margin-bottom: 16px;
-    }
-
+    /* ── Table ── */
     table {
       width: 100%;
       border-collapse: collapse;
-      background: #fff;
-      box-shadow: 0 2px 6px rgba(0,0,0,.08);
     }
 
     th, td {
-      padding: 12px;
-      border-bottom: 1px solid #e0e0e0;
+      padding: 13px 14px;
+      border-bottom: 1px solid var(--line);
       text-align: left;
-      font-size: 14px;
+      font-size: 0.88rem;
     }
 
     th {
-      background: #fafafa;
-      font-weight: 600;
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      background: var(--card-2);
     }
 
-    .status {
-      font-weight: 600;
-      text-transform: capitalize;
-    }
+    td { color: var(--ink); }
 
-    .status.queued { color: #555; }
-    .status.approved { color: #1a73e8; }
-    .status.sent { color: #0b8043; }
-    .status.failed { color: #c5221f; }
-    .status.archived { color: #777; }
+    tr:last-child td { border-bottom: none; }
+
+    /* ── Status badges ── */
+    .status { font-weight: 600; text-transform: capitalize; }
+    .status.queued     { color: var(--muted); }
+    .status.processing { color: var(--gold); }
+    .status.sent       { color: rgba(34,197,94,.9); }
+    .status.failed     { color: #e05c5c; }
+    .status.archived   { color: var(--muted); opacity: .6; }
+
+    /* ── Action buttons ── */
+    .actions { display: flex; gap: 6px; flex-wrap: wrap; }
 
     .actions button {
-      margin-right: 6px;
-      padding: 6px 10px;
-      font-size: 12px;
+      padding: 5px 11px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: transparent;
+      color: var(--muted);
       cursor: pointer;
+      font-family: inherit;
+      transition: border-color 0.18s, color 0.18s;
     }
+
+    .actions button:hover        { border-color: var(--gold); color: var(--gold); }
+    .actions button:disabled     { opacity: .4; cursor: not-allowed; }
+    .actions button[data-action="processing"],
+    .actions button[data-action="reprint"]   { border-color: var(--gold-border); color: var(--gold); }
+    .actions button[data-action="sent"]      { border-color: rgba(34,197,94,.35); color: rgba(34,197,94,.9); }
+    .actions button[data-action="failed"],
+    .actions button[data-action="archived"]  { border-color: rgba(255,255,255,.1); }
   </style>
 </head>
 
 <body>
 
-<h1>📬 Delivery Queue</h1>
+<header style="padding:18px 0;">
+  <div class="wrap">
+    <div class="row">
+      <div>
+        <h1 style="margin:0;">Delivery Queue</h1>
+        <div class="muted" style="margin-top:6px;font-size:0.85rem;">Print, process, and track outbound letters</div>
+      </div>
+      <div class="row">
+        <a class="badge" href="/admin/dashboard.html">Dashboard</a>
+        <button id="refresh-btn" class="badge" style="cursor:pointer;background:transparent;color:var(--muted);font-family:inherit;">Refresh</button>
+      </div>
+    </div>
+  </div>
+</header>
 
-<table id="queue-table">
-  <thead>
-    <tr>
-      <th>ID</th>
-      <th>Senator</th>
-      <th>Status</th>
-      <th>Created</th>
-      <th>Actions</th>
-    </tr>
-  </thead>
-  <tbody>
-    <!-- populated by JS -->
-  </tbody>
-</table>
+<main class="wrap">
+  <div class="card" style="padding:0;overflow:hidden;">
+    <table id="queue-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Senator</th>
+          <th>Status</th>
+          <th>Created</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- populated by JS -->
+      </tbody>
+    </table>
+  </div>
+</main>
+
+<footer style="padding:18px 0;">
+  <div class="wrap muted" style="font-size:0.8rem;">
+    v1 internal queue · process letters per the <a href="/docs/delivery-sop.md" style="color:var(--muted);">delivery SOP</a>
+  </div>
+</footer>
 
 <script src="js/admin.js"></script>
+<script>
+  document.getElementById('refresh-btn').addEventListener('click', loadQueue);
+</script>
+
+<!-- ── Admin Auth Gate ── -->
+<style>
+  #auth-gate {
+    position: fixed; inset: 0; z-index: 9999;
+    background: #111;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #auth-box {
+    background: #1e1e1e; border: 1px solid #333;
+    border-radius: 12px; padding: 40px 36px;
+    width: 100%; max-width: 360px; text-align: center;
+    font-family: system-ui, sans-serif;
+  }
+  #auth-box h2 { color: #fff; font-size: 1.1rem; margin-bottom: 6px; }
+  #auth-box p  { color: #888; font-size: 0.82rem; margin-bottom: 22px; }
+  #auth-password {
+    width: 100%; padding: 11px 14px; border-radius: 8px;
+    border: 1px solid #444; background: #111; color: #fff;
+    font-size: 0.95rem; margin-bottom: 12px; outline: none;
+  }
+  #auth-password:focus { border-color: #666; }
+  #auth-submit {
+    width: 100%; padding: 11px; border-radius: 8px;
+    background: #fff; color: #111; font-weight: 700;
+    font-size: 0.9rem; border: none; cursor: pointer;
+  }
+  #auth-submit:hover { background: #ddd; }
+  #auth-error { color: #e05c5c; font-size: 0.8rem; margin-top: 10px; min-height: 18px; }
+</style>
+
+<div id="auth-gate">
+  <div id="auth-box">
+    <h2>🔒 Admin Access</h2>
+    <p>MLK Honor Campaign · Internal Only</p>
+    <input id="auth-password" type="password" placeholder="Enter admin password" autocomplete="off"/>
+    <button id="auth-submit">Unlock</button>
+    <div id="auth-error"></div>
+  </div>
+</div>
+
+<script>
+  const ADMIN_HASH = '89180163a00ff8449ceee06b62701e698c70e805a0cb9ba2c7754e9742fbd723';
+  const SESSION_KEY = 'mlk_admin_auth';
+
+  async function sha256(str) {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  function unlock() {
+    document.getElementById('auth-gate').remove();
+  }
+
+  if (sessionStorage.getItem(SESSION_KEY) === ADMIN_HASH) {
+    unlock();
+  }
+
+  document.getElementById('auth-submit').addEventListener('click', async () => {
+    const val = document.getElementById('auth-password').value;
+    const hash = await sha256(val);
+    if (hash === ADMIN_HASH) {
+      sessionStorage.setItem(SESSION_KEY, ADMIN_HASH);
+      sessionStorage.setItem('mlk_admin_pw', val);
+      unlock();
+    } else {
+      document.getElementById('auth-error').textContent = 'Incorrect password.';
+    }
+  });
+
+  document.getElementById('auth-password').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('auth-submit').click();
+  });
+</script>
 
 </body>
 </html>

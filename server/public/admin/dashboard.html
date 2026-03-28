@@ -122,7 +122,9 @@
   async function load(){
     try{
       setStatus(false, 'Loading…');
-      const res = await fetch('/admin/api/dashboard');
+      const res = await fetch('/admin/api/dashboard', {
+        headers: { 'X-Admin-Token': sessionStorage.getItem('mlk_admin_pw') || '' }
+      });
       if(!res.ok) throw new Error('HTTP ' + res.status);
       const data = await res.json();
 
@@ -145,7 +147,83 @@
   }
 
   document.getElementById('refresh').addEventListener('click', load);
-  load();
+  // load() is called from unlock() after auth is confirmed — not on raw page load
 </script>
+
+<!-- ── Admin Auth Gate ── -->
+<style>
+  #auth-gate {
+    position: fixed; inset: 0; z-index: 9999;
+    background: #111;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #auth-box {
+    background: #1e1e1e; border: 1px solid #333;
+    border-radius: 12px; padding: 40px 36px;
+    width: 100%; max-width: 360px; text-align: center;
+    font-family: system-ui, sans-serif;
+  }
+  #auth-box h2 { color: #fff; font-size: 1.1rem; margin-bottom: 6px; }
+  #auth-box p  { color: #888; font-size: 0.82rem; margin-bottom: 22px; }
+  #auth-password {
+    width: 100%; padding: 11px 14px; border-radius: 8px;
+    border: 1px solid #444; background: #111; color: #fff;
+    font-size: 0.95rem; margin-bottom: 12px; outline: none;
+  }
+  #auth-password:focus { border-color: #666; }
+  #auth-submit {
+    width: 100%; padding: 11px; border-radius: 8px;
+    background: #fff; color: #111; font-weight: 700;
+    font-size: 0.9rem; border: none; cursor: pointer;
+  }
+  #auth-submit:hover { background: #ddd; }
+  #auth-error { color: #e05c5c; font-size: 0.8rem; margin-top: 10px; min-height: 18px; }
+</style>
+
+<div id="auth-gate">
+  <div id="auth-box">
+    <h2>🔒 Admin Access</h2>
+    <p>MLK Honor Campaign · Internal Only</p>
+    <input id="auth-password" type="password" placeholder="Enter admin password" autocomplete="off"/>
+    <button id="auth-submit">Unlock</button>
+    <div id="auth-error"></div>
+  </div>
+</div>
+
+<script>
+  const ADMIN_HASH = '89180163a00ff8449ceee06b62701e698c70e805a0cb9ba2c7754e9742fbd723';
+  const SESSION_KEY = 'mlk_admin_auth';
+
+  async function sha256(str) {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  function unlock() {
+    document.getElementById('auth-gate').remove();
+    load();
+  }
+
+  if (sessionStorage.getItem(SESSION_KEY) === ADMIN_HASH) {
+    unlock();
+  }
+
+  document.getElementById('auth-submit').addEventListener('click', async () => {
+    const val = document.getElementById('auth-password').value;
+    const hash = await sha256(val);
+    if (hash === ADMIN_HASH) {
+      sessionStorage.setItem(SESSION_KEY, ADMIN_HASH);
+      sessionStorage.setItem('mlk_admin_pw', val);
+      unlock();
+    } else {
+      document.getElementById('auth-error').textContent = 'Incorrect password.';
+    }
+  });
+
+  document.getElementById('auth-password').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('auth-submit').click();
+  });
+</script>
+
 </body>
 </html>
