@@ -12,7 +12,7 @@ This is **not** protest software, lobbying, or fundraising. It is a structured c
 
 **Tier:** 1 — Enterprise Grade (reclassified from T2)
 **Type:** Civic correspondence platform — payments, admin, queue management
-**Stack:** Node.js + Express + Firebase Hosting + Firestore + Stripe
+**Stack:** Firebase Cloud Functions + Firebase Hosting + Firestore + Stripe
 **Commercial Intent:** Active — Stripe-powered service fees
 **Firebase Project:** `mlk-honor-campaign`
 **Deployment:** Firebase Hosting (frontend) + Firebase Cloud Functions (backend)
@@ -84,9 +84,6 @@ firebase deploy --only functions
 
 # Deploy Firestore rules
 firebase deploy --only firestore:rules
-
-# Deploy to Render
-# Handled via render.yaml — push to connected git branch
 
 # View Firebase logs
 firebase functions:log
