@@ -69,7 +69,7 @@ async function loadQueue() {
 function renderButtons(msg) {
   if (msg.status === 'archived') return '—';
   const all = [
-    { action: 'processing', label: '🖨 Print & Process' },
+    { action: 'processing', label: 'Print & Process' },
     { action: 'sent',       label: 'Sent' },
     { action: 'failed',     label: 'Failed' },
     { action: 'archived',   label: 'Archive' },
@@ -80,7 +80,7 @@ function renderButtons(msg) {
     .join('');
 
   const reprint = msg.status === 'processing'
-    ? `<button data-action="reprint">🖨 Reprint</button>`
+    ? `<button data-action="reprint">Reprint</button>`
     : '';
 
   return reprint + buttons;

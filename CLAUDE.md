@@ -1,21 +1,21 @@
 # mlk-honor-campaign
 # Tier 1 — Enterprise Grade | OCTech Services
-# Last Updated: 2026-03-28 | Version: 3.1
+# Last Updated: 2026-03-28 | Version: 3.2
 
 ---
 
 ## 1. Project Purpose
 
-MLK Honor Campaign is a civic correspondence SaaS platform that enables citizens to send respectful, values-driven messages to U.S. Senators — honoring the legacy of Dr. Martin Luther King Jr. through principled civic engagement. Users select a senator, choose a pre-written message template, and pay a fixed service fee via Stripe. Messages are queued, logged immutably, and prepared for delivery.
+MLK Honor Campaign is a civic correspondence platform that enables citizens to send respectful, values-driven messages to U.S. Senators — honoring the legacy of Dr. Martin Luther King Jr. through principled civic engagement. Citizens select a senator, choose a pre-written message template, and pay a fixed service fee via Stripe. Messages are queued, logged immutably, and delivered via USPS Certified Mail.
 
 This is **not** protest software, lobbying, or fundraising. It is a structured civic expression service built with operational integrity, transparency, and respect for democratic norms.
 
 **Tier:** 1 — Enterprise Grade (reclassified from T2)
-**Type:** Civic SaaS platform — payments, admin, queue management
+**Type:** Civic correspondence platform — payments, admin, queue management
 **Stack:** Node.js + Express + Firebase Hosting + Firestore + Stripe
 **Commercial Intent:** Active — Stripe-powered service fees
 **Firebase Project:** `mlk-honor-campaign`
-**Deployment:** Render (render.yaml) + Firebase Hosting
+**Deployment:** Firebase Hosting (frontend) + Firebase Cloud Functions (backend)
 **Git:** Initialized ✅
 **Status:** Active
 
@@ -24,28 +24,30 @@ This is **not** protest software, lobbying, or fundraising. It is a structured c
 ## 2. Architecture Overview
 
 **Frontend:** Static HTML/CSS/JS — `server/public/` directory
-- `index.html` — landing and senator selection
-- `admin.html` / `admin/dashboard.html` — admin queue management
+- `index.html` — landing, senator selection, message selection, checkout
+- `admin.html` — admin queue management (authenticated)
+- `admin/dashboard.html` — admin stats dashboard (authenticated)
 - `faq.html`, `how-it-works.html`, `progress.html`, `spread.html`, `success.html`
-- `js/` — senator-ui, admin, admin-queue, message-templates, progress, senators
+- `js/` — senator-ui, admin, message-templates, progress, senators
 - `data/` — `senators.json`, `message-templates.json` (all public content)
 - `assets/qr/` — QR code for campaign
 
-**Backend:** Node.js/Express — `server/index.js`
-**Cloud Functions (Firebase):**
-- `publicMetrics` → public campaign metrics
-- `checkoutSession` → Stripe checkout creation
-- `createCheckoutSession` → alternate checkout handler
-- `adminDashboard` → admin stats
-- `adminQueue` → message queue management
-- `adminUpdateStatus` → queue status updates
+**Backend:** Firebase Cloud Functions — `server/index.js`
+**Cloud Functions:**
+- `createCheckoutSession` → Stripe checkout creation (public)
+- `stripeWebhook` → authoritative payment + message write (webhook)
+- `checkoutSession` → success page session lookup (public)
+- `publicMetrics` → public campaign metrics (public)
+- `adminDashboard` → admin stats (authenticated)
+- `adminQueue` → message queue read (authenticated)
+- `adminUpdateStatus` → queue status mutation (authenticated)
 
 **Database:** Firestore — `firestore.rules` at root
-**Auth:** Admin authentication (verify implementation in server/index.js)
-**Payments:** Stripe Checkout + Webhook
-**Queue:** File-based message queue (v1) — `server/queue/`
-**Templates:** `server/templates/templates.js`
-**Hosting:** Firebase Hosting (`server/public/`) + Render (server)
+**Auth:** SHA-256 token hash verified server-side on every admin request
+**Payments:** Stripe Checkout + Webhook (signature verified)
+**Queue:** Firestore `messages` collection — append-only, immutable log
+**Templates:** `server/public/data/message-templates.json`
+**Hosting:** Firebase Hosting (`server/public/`) — Render is not in use
 
 ---
 
@@ -59,7 +61,7 @@ This is **not** protest software, lobbying, or fundraising. It is a structured c
 - Senator data (`senators.json`) must be kept current and accurate
 - Small, reviewable changes only — especially on payment and queue logic
 - Content changes (templates, senator list) require review — not solo edits
-- ⚠️ server/index.js and admin.js flagged for secret patterns — review before commit
+- server/index.js and admin.js reviewed 2026-03-28 — confirmed clean, no hardcoded secrets
 
 ---
 
@@ -94,7 +96,7 @@ firebase functions:log
 
 ## 5. Code Standards
 
-- Message templates in `server/templates/templates.js` — single source of truth
+- Message templates in `server/public/data/message-templates.json` — single source of truth
 - Senator data in `server/public/data/senators.json` — keep current and verified
 - All Stripe webhook events must use `stripe.webhooks.constructEvent()` for verification
 - Admin routes must require authentication on every request — server-side only
@@ -106,14 +108,14 @@ firebase functions:log
 
 ## 6. Security / Data Handling
 
-- 🔴 Stripe keys must be in environment config — not hardcoded in server/index.js
-- 🔴 Admin dashboard routes must verify auth on every request — no client-side auth only
-- 🔴 server/index.js flagged for secret patterns — verify before any commit
+- Stripe keys stored in Firebase Secret Manager via `defineSecret()` — confirmed ✅
+- Admin dashboard routes verify SHA-256 token hash server-side on every request — confirmed ✅
+- server/index.js reviewed 2026-03-28 — no hardcoded secrets — confirmed ✅
+- Firestore rules lock payments and messages to no public read/write — confirmed ✅ (2026-03-28)
 - Message queue is an immutable audit log — preserve integrity at all times
-- No user personal data resale — as stated in platform transparency policy
+- No citizen personal data resale — as stated in platform transparency policy
 - Minimal metadata collection — only what is operationally required
-- Firestore rules must restrict queue and admin data to authenticated admin only
-- `.gitignore` covers `.env` files — verify before any commit
+- `.gitignore` covers `.env` files — verified ✅
 
 ---
 
@@ -139,7 +141,37 @@ firebase functions:log
 
 ---
 
-## 9. Firestore Schema
+## 9. Voice & Tone — Non-Negotiable
+
+The platform exists to honor a legacy and give citizens a principled way to engage their government. That purpose must be felt in every word, every design choice, and every interaction.
+
+### The anchor
+This is a human platform. Built by people who care, for people who care. It is not a SaaS product. It is not a growth tool. It is a civic expression service — and it must read and feel like one.
+
+### Writing principles
+- **Direct and human** — Write the way a principled person speaks. Not marketing copy. Not legal boilerplate. Not startup enthusiasm.
+- **Dignity over cleverness** — No wordplay, no slogans, no conversion tactics. Every word should hold up under scrutiny.
+- **Civic language** — Use the vocabulary of civic life: senator, letter, citizen, deliver, accountability, legacy, principle. Avoid: user, submit, product, tier, unlock, get started.
+- **Brevity with weight** — Short sentences. No padding. Every sentence should earn its place.
+
+### Design principles
+- **Warmth over polish** — The platform should feel handmade with care, not manufactured at scale.
+- **Context before action** — Users should understand what they are doing and why before they are asked to pay. The hero, the quote, the preview — all of this is context.
+- **The quote is not decoration** — MLK's words set the moral frame for the entire interaction. Treat them with that weight.
+- **No dark patterns** — No urgency manipulation, no inflated social proof, no hidden costs. Transparency is part of the mission.
+
+### What to avoid
+- Corporate language (leverage, seamless, powerful, robust, streamline)
+- Conversion-optimized copy (Act now, Limited time, Join thousands)
+- Passive voice that dilutes responsibility
+- Any language that makes the $7 feel like a trick or a barrier
+
+### Applies to
+UI copy, message templates, admin dashboard labels, error messages, FAQ language, email receipts, and any future content. When in doubt, read it aloud. If it sounds like an ad, rewrite it.
+
+---
+
+## 10. Firestore Schema
 
 All reads and writes to Firestore go exclusively through Cloud Functions. Direct client SDK access is denied by Firestore rules.
 
@@ -171,7 +203,7 @@ All reads and writes to Firestore go exclusively through Cloud Functions. Direct
 
 ---
 
-## 10. Deployment Architecture (Confirmed 2026-03-28)
+## 11. Deployment Architecture (Confirmed 2026-03-28)
 
 - **Firebase Hosting** — serves `server/public/` (all frontend HTML/JS/CSS/data)
 - **Firebase Cloud Functions** — serves all backend logic (`server/index.js`)
@@ -179,11 +211,11 @@ All reads and writes to Firestore go exclusively through Cloud Functions. Direct
 
 ---
 
-## 11. Open Items / Next Steps
+## 12. Open Items / Next Steps
 
 - [x] Review server/index.js for any hardcoded Stripe or Firebase keys — ✅ Clean
 - [x] Review admin.js for hardcoded config — ✅ Clean (token via sessionStorage only)
-- [x] Document Firestore collections and schema — ✅ See Section 9
+- [x] Document Firestore collections and schema — ✅ See Section 10
 - [x] Confirm admin authentication implementation — ✅ SHA-256 hash verified server-side on every request
 - [x] Confirm Render deployment configuration is current — ✅ Render is not in use; Firebase only
 - [x] Fix price manipulation vulnerability (amount hardcoded server-side) — ✅ Done 2026-03-28
