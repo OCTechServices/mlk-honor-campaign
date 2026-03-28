@@ -4,30 +4,28 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>MLK Honor Campaign</title>
-  <!-- Social sharing -->
-<meta property="og:title" content="MLK Honor Campaign" />
-<meta property="og:description" content="A civic correspondence service honoring the legacy of Martin Luther King Jr. through respectful, values-driven messages to elected officials." />
-<meta property="og:type" content="website" />
-<meta property="og:url" content="https://mlk-honor-campaign.web.app" />
-<meta property="og:image" content="https://mlk-honor-campaign.web.app/og-image.png" />
 
-<meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:title" content="MLK Honor Campaign" />
-<meta name="twitter:description" content="Respectful civic correspondence focused on accountability, dignity, and the rule of law." />
-<meta name="twitter:image" content="https://mlk-honor-campaign.web.app/og-image.png" />
+  <meta property="og:title" content="MLK Honor Campaign" />
+  <meta property="og:description" content="A civic correspondence service honoring the legacy of Martin Luther King Jr. through respectful, values-driven messages to elected officials." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://mlk-honor-campaign.web.app" />
+  <meta property="og:image" content="https://mlk-honor-campaign.web.app/og-image.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="MLK Honor Campaign" />
+  <meta name="twitter:description" content="Respectful civic correspondence focused on accountability, dignity, and the rule of law." />
+  <meta name="twitter:image" content="https://mlk-honor-campaign.web.app/og-image.png" />
 
   <link rel="stylesheet" href="css/style.css">
 </head>
 
 <body>
 
-<header>
-  <h1>MLK Honor Campaign</h1>
-  <p>
-    A civic correspondence service honoring the legacy of Martin Luther King Jr.
-    through respectful, values-driven messages to elected officials.
-  </p>
-
+<header class="header-slim">
+  <h1 class="wordmark">
+    <span class="wordmark-mlk">MLK</span>
+    <span class="wordmark-divider">◆</span>
+    <span class="wordmark-rest">Honor Campaign</span>
+  </h1>
   <nav>
     <a href="/how-it-works.html">How It Works</a>
     <a href="/faq.html">FAQ</a>
@@ -36,69 +34,71 @@
   </nav>
 </header>
 
-<main class="main">
+<section class="hero">
+  <p class="hero-eyebrow">Civic Correspondence · Est. 2025</p>
+  <h2 class="hero-headline">Honor the legacy.<br>Engage the republic.</h2>
+  <p class="hero-sub">
+    Send a principled letter to a U.S. Senator — delivered by USPS Certified Mail.
+    No account required.
+  </p>
+  <a class="hero-scroll" href="#send-form">Send a letter &darr;</a>
+</section>
+
+<main class="main" id="send-form">
   <div class="card">
-    <h2>Purpose</h2>
-    <p>
-      This platform enables individuals to send a calm, principled message
-      to a U.S. Senator, encouraging fidelity to democratic norms,
-      moral leadership, and the rule of law.
-    </p>
+    <h2>Choose Your Senator &amp; Message</h2>
+    <p>Select a senator and a pre-approved message template. Your letter will be mailed on your behalf.</p>
 
-    <p>
-      This is not protest software, not lobbying, and not a fundraising platform.
-      It is a civic expression service designed with operational integrity.
-    </p>
-
-    <!-- Senator selector -->
-    <label for="senator-search">Select a Senator</label>
+    <label for="senator-search">Search by State or Name</label>
     <input
       id="senator-search"
       type="text"
-      placeholder="Search by state or name"
+      placeholder="e.g. California or Smith"
       style="margin-bottom:10px;"
     >
     <select id="senator">
       <option value="">— Choose a Senator —</option>
     </select>
 
-    <!-- Message template selector -->
-    <label for="message-template">Select a Message</label>
+    <label for="message-template">Message Template</label>
     <select id="message-template">
       <option value="">— Choose a Message —</option>
     </select>
 
-    <!-- Read-only Message Preview -->
     <div id="message-preview" class="message-preview">
       <div class="message-preview-label">Message Preview — Read Only</div>
       <div class="message-preview-title" id="template-title"></div>
       <div class="message-preview-body" id="template-body"></div>
     </div>
 
-    <a class="cta" href="#" id="checkout" style="margin-top:24px;">
-      Send a Message
-    </a>
+    <blockquote class="card-quote">
+      "The time is always right to do what is right."
+      <cite>— Dr. Martin Luther King Jr.</cite>
+    </blockquote>
+
+    <p class="price-line">$7.00 &middot; One-time &middot; No account needed &middot; Secure checkout via Stripe</p>
+
+    <a class="cta cta-block" href="#" id="checkout">Send Your Letter</a>
+
+    <div class="trust-row">
+      <span>🔒&nbsp;Secure</span>
+      <span>📬&nbsp;USPS Certified Mail</span>
+      <span>✓&nbsp;Pre-approved Message</span>
+    </div>
   </div>
 </main>
 
 <footer>
-  © MLK Honor Campaign · Civic Integrity · Justice · Accountability
+  © MLK Honor Campaign &middot; Civic Integrity &middot; Justice &middot; Accountability
 </footer>
 
-<!-- Senator data + UI -->
 <script src="js/senators.js"></script>
 <script src="js/senator-ui.js"></script>
-<script>
-  window.initSenatorUI();
-</script>
+<script>window.initSenatorUI();</script>
 
-<!-- Message templates -->
 <script src="js/message-templates.js"></script>
-<script>
-  loadMessageTemplates();
-</script>
+<script>loadMessageTemplates();</script>
 
-<!-- Checkout -->
 <script>
   const btn = document.getElementById('checkout');
   const senatorSelect = document.getElementById('senator');

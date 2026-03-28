@@ -176,16 +176,25 @@ exports.publicMetrics = onRequest(
         .count()
         .get();
 
-      const paidSnap = await db
-        .collection('payments')
-        .where('status', '==', 'paid')
-        .select('amount')
-        .get();
+      const [paidSnap, stateSnap] = await Promise.all([
+        db.collection('payments').where('status', '==', 'paid').select('amount').get(),
+        db.collection('messages').select('senator').get(),
+      ]);
 
       let raised = 0;
       paidSnap.forEach((doc) => {
         if (typeof doc.data().amount === 'number') {
           raised += doc.data().amount;
+        }
+      });
+
+      // Parse state abbreviation from senator field ("CA — Senator Name")
+      const states = {};
+      stateSnap.forEach((doc) => {
+        const senator = doc.data().senator || '';
+        const abbr = senator.split(' — ')[0].trim();
+        if (/^[A-Z]{2}$/.test(abbr)) {
+          states[abbr] = (states[abbr] || 0) + 1;
         }
       });
 
@@ -200,6 +209,7 @@ exports.publicMetrics = onRequest(
           cap: 300,
           paidCount: paidSnap.size,
         },
+        states,
         lastUpdated: new Date().toISOString(),
         source: 'firestore',
       });
