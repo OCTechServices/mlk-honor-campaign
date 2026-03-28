@@ -5,6 +5,7 @@ const { onRequest } = require('firebase-functions/v2/https');
 const { defineSecret } = require('firebase-functions/params');
 const admin = require('firebase-admin');
 const Stripe = require('stripe');
+const { createHash } = require('crypto');
 
 admin.initializeApp();
 
@@ -13,6 +14,7 @@ admin.initializeApp();
    ============================================================ */
 const STRIPE_SECRET_KEY = defineSecret('STRIPE_SECRET_KEY');
 const STRIPE_WEBHOOK_SECRET = defineSecret('STRIPE_WEBHOOK_SECRET');
+const ADMIN_HASH = defineSecret('ADMIN_HASH');
 
 /* ============================================================
    Create Stripe Checkout Session (PUBLIC → SERVER)
@@ -40,13 +42,12 @@ exports.createCheckoutSession = onRequest(
       });
 
       const {
-        amount = 7, // dollars
         senator = 'unknown',
         state = 'unknown',
         templateId = 'mlk_civic_01',
       } = req.body || {};
 
-      const amountCents = Math.round(Number(amount) * 100);
+      const amountCents = 700; // $7.00 — fixed server-side, not client-controlled
 
       const session = await stripe.checkout.sessions.create({
         mode: 'payment',
@@ -69,9 +70,9 @@ exports.createCheckoutSession = onRequest(
           templateId,
         },
         success_url:
-          'https://mlk-honor-campaign.web.app/?success=true',
+          'https://mlk-honor-campaign.web.app/success.html?session_id={CHECKOUT_SESSION_ID}',
         cancel_url:
-          'https://mlk-honor-campaign.web.app/?canceled=true',
+          'https://mlk-honor-campaign.web.app/index.html?canceled=true',
       });
 
       return res.status(200).json({ url: session.url });
@@ -209,11 +210,132 @@ exports.publicMetrics = onRequest(
 );
 
 /* ============================================================
+   Checkout Session — Success Page Lookup (PUBLIC)
+   ============================================================ */
+exports.checkoutSession = onRequest(
+  { region: 'us-central1', secrets: [STRIPE_SECRET_KEY] },
+  async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+
+    if (req.method !== 'GET') {
+      return res.status(405).json({ error: 'method_not_allowed' });
+    }
+
+    const sessionId = req.query.session_id;
+    if (!sessionId || !sessionId.startsWith('cs_')) {
+      return res.status(400).json({ error: 'invalid_session_id' });
+    }
+
+    try {
+      const stripe = new Stripe(STRIPE_SECRET_KEY.value(), {
+        apiVersion: '2023-10-16',
+      });
+      const session = await stripe.checkout.sessions.retrieve(sessionId);
+      return res.json({
+        senator:    session.metadata?.senator    || null,
+        templateId: session.metadata?.templateId || null,
+      });
+    } catch (err) {
+      console.error('checkoutSession error:', err);
+      return res.status(500).json({ error: 'session_unavailable' });
+    }
+  }
+);
+
+/* ============================================================
+   Admin Queue — Read All Messages
+   ============================================================ */
+exports.adminQueue = onRequest(
+  { region: 'us-central1', secrets: [ADMIN_HASH] },
+  async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+
+    const token = req.headers['x-admin-token'];
+    if (!token) return res.status(401).json({ error: 'unauthorized' });
+    if (createHash('sha256').update(token).digest('hex') !== ADMIN_HASH.value()) {
+      return res.status(401).json({ error: 'unauthorized' });
+    }
+
+    if (req.method !== 'GET') return res.status(405).json({ error: 'method_not_allowed' });
+
+    try {
+      const db = admin.firestore();
+      const snap = await db.collection('messages').orderBy('createdAt', 'desc').get();
+      const messages = snap.docs.map((doc) => {
+        const d = doc.data();
+        return {
+          id: doc.id,
+          senator: d.senator || 'unknown',
+          templateId: d.templateId || '—',
+          status: d.status || 'queued',
+          paymentSessionId: d.paymentSessionId || null,
+          createdAt:  d.createdAt?.toDate?.()?.toISOString()  ?? null,
+          updatedAt:  d.updatedAt?.toDate?.()?.toISOString()  ?? null,
+          printedAt:  d.printedAt?.toDate?.()?.toISOString()  ?? null,
+        };
+      });
+      return res.json(messages);
+    } catch (err) {
+      console.error('adminQueue error:', err);
+      return res.status(500).json({ error: 'queue_unavailable' });
+    }
+  }
+);
+
+/* ============================================================
+   Admin Update Status — Mutate a Message
+   ============================================================ */
+exports.adminUpdateStatus = onRequest(
+  { region: 'us-central1', secrets: [ADMIN_HASH] },
+  async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+
+    const token = req.headers['x-admin-token'];
+    if (!token) return res.status(401).json({ error: 'unauthorized' });
+    if (createHash('sha256').update(token).digest('hex') !== ADMIN_HASH.value()) {
+      return res.status(401).json({ error: 'unauthorized' });
+    }
+
+    if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
+
+    const { id, status, markPrinted } = req.body || {};
+    const VALID = ['queued', 'processing', 'sent', 'failed', 'archived'];
+    if (!id || !VALID.includes(status)) {
+      return res.status(400).json({ error: 'invalid_request' });
+    }
+
+    try {
+      const db = admin.firestore();
+      const update = {
+        status,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      };
+      if (markPrinted === true) {
+        update.printedAt = admin.firestore.FieldValue.serverTimestamp();
+      }
+      await db.collection('messages').doc(id).update(update);
+      return res.json({ ok: true });
+    } catch (err) {
+      console.error('adminUpdateStatus error:', err);
+      return res.status(500).json({ error: 'update_failed' });
+    }
+  }
+);
+
+/* ============================================================
    Admin Dashboard — Internal Read Only
    ============================================================ */
 exports.adminDashboard = onRequest(
-  { region: 'us-central1' },
+  { region: 'us-central1', secrets: [ADMIN_HASH] },
   async (req, res) => {
+    // ---- Server-side auth ----
+    const token = req.headers['x-admin-token'];
+    if (!token) return res.status(401).json({ error: 'unauthorized' });
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    if (tokenHash !== ADMIN_HASH.value()) {
+      return res.status(401).json({ error: 'unauthorized' });
+    }
+
     try {
       res.set('Cache-Control', 'no-store');
       const db = admin.firestore();
